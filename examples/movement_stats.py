@@ -20,15 +20,12 @@ import threading
 import signal
 import random
 import math
-import MemsicAccelerometer
 
 parser = optparse.OptionParser()
 parser.add_option("-p", "--serialport", dest="serialportname",
                   help="serial port (ex: /dev/ttyUSB0)", default="/dev/ttyACM0")
 parser.add_option("-b", "--baud", dest="serialbaud",
                   help="serial port baud rate", default="115200")
-parser.add_option("-a", "--accelerometerport", dest="accelerometerportname",
-                  help="port that the accelerometer is attached to (ex: /dev/ttyUSB0)", default="/dev/ttyACM0")
 (options, args) = parser.parse_args()
 
 class LineGenerator:
@@ -105,13 +102,13 @@ r = s3g.s3g()
 
 r.file = serial.Serial(options.serialportname, options.serialbaud, timeout=0)
 
-acc = MemsicAccelerometer.Memsic2125(options.accelerometerportname)
-acc.start()
-
 # Test patterns to run
 target_position = 13000
 
 test_states = []
+
+#for moves in range(1,20,1):
+#    test_states.append([target_position*1.0/moves, 1,500])
 for moves in range(100,1400,120):
     test_states.append([target_position/moves, 1,500])
 for duration in range(9,2,-1):
@@ -125,9 +122,7 @@ test_length = 3
 print "commands/sec, velocity, distance, command_length," + \
       " command_count, max_queue_time, min_queue_time, average_queue_time," + \
       " total_distance, total_retries, total_overflows," + \
-      " total_time, expected_time" + \
-      " min_x_acc, max_x_acc, average_x_acc"
-
+      " total_time, expected_time"
 
 for test_state in test_states:
 
@@ -137,9 +132,6 @@ for test_state in test_states:
         pass
 
     generator = LineGenerator(test_state[0], test_state[1], test_state[2])
-
-    filename = 'divisions_%05i.csv'%test_state[0]
-    acc.StartCaptureToFile(filename)
 
     command_count = 0
     queue_times = []
@@ -170,22 +162,6 @@ for test_state in test_states:
         pass
     total_time = time.time() - start_time
 
-    acc.StopCaptureToFile()
-
-    max_x_acc = 0
-    min_x_acc = 100000
-    total_x_acc = 0
-    x_acc_count = 0
-    with open(filename) as file:
-      for line in file:
-        x_acc = int(line.split(',')[2])
-        y_acc = int(line.split(',')[3])
-        
-        min_x_acc = min(min_x_acc, x_acc)
-        max_x_acc = max(max_x_acc, x_acc)
-        total_x_acc += x_acc
-        x_acc_count += 1
-
     min_time = 1000
     max_time = 0
     queue_total_time = 0
@@ -194,12 +170,11 @@ for test_state in test_states:
         max_time = max(max_time, queue_time)
         queue_total_time += queue_time
 
-    print "%.2f, %.2f, %.4f, %.4f, %i, %.4f, %.4f, %.4f, %.4f, %i, %i, %.2f, %.2f, %.2f, %.2f, %.2f"%(
+    print "%.2f, %.2f, %.4f, %.4f, %i, %.4f, %.4f, %.4f, %.4f, %i, %i, %.2f, %.2f"%(
         1.0/generator.duration, generator.velocity, generator.distance, generator.duration,
         command_count, max_time, min_time, queue_total_time/command_count,
         generator.distance*command_count, r.total_retries, r.total_overflows,
         total_time, generator.duration*command_count,
-        min_x_acc, max_x_acc, total_x_acc/x_acc_count
     )
 
 
